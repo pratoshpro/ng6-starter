@@ -1,35 +1,69 @@
-var path    = require('path');
-var webpack = require('webpack');
-var HtmlWebpackPlugin = require('html-webpack-plugin');
 
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CleanWebpackPlugin = require('clean-webpack-plugin');
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
+const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const devMode = process.env.NODE_ENV !== 'production';
+
+console.log('devMode-->',devMode);
 module.exports = {
-  devtool: 'source-map',
-  entry: {},
-  module: {
-    loaders: [
-       { test: /\.js$/, exclude: [/app\/lib/, /node_modules/], loader: 'ng-annotate!babel' },
-       { test: /\.html$/, loader: 'raw' },
-       { test: /\.(scss|sass)$/, loader: 'style!css!sass' },
-       { test: /\.css$/, loader: 'style!css' }
+    optimization: {
+         minimizer: [
+          new OptimizeCSSAssetsPlugin({})
+        ]
+    },
+    entry: { main: './client/app/app.js' },
+    output: {
+        path: path.resolve(__dirname, 'dist'),
+        chunkFilename: '[name].[hash].js',
+        filename: '[name].[hash].js'
+    },
+    module: {
+        rules: [
+            {
+                test: /\.s?[ac]ss$/,
+                use: [  devMode ? 'style-loader' : MiniCssExtractPlugin.loader,
+                    'css-loader',
+                    'sass-loader',
+              ],
+            },
+            {
+                test: /\.html$/,
+                use: [{
+                    loader: 'html-loader',
+                    options: {
+                        //minimize: true,
+                        removeComments: true,
+                        //collapseWhitespace: false
+                    }
+                }]
+            },
+            {
+                test: /\.js$/,
+                exclude: /(node_modules| app | lib)/,
+                use: {
+                    loader: 'babel-loader',
+                    // options: {
+                    //   presets: ['@babel/preset-env']
+                    // }
+                }
+            }
+        ]
+    },
+    plugins: [
+        new CleanWebpackPlugin('dist', {} ),
+        new HtmlWebpackPlugin({
+            inject: true,
+            hash: true,
+            template: './client/index.html',
+            filename: 'index.html'
+        }),
+        new MiniCssExtractPlugin({
+            filename: devMode ? '[name].css' : '[name].[hash].css',
+            chunkFilename: devMode ? '[id].css' : '[id].[hash].css',
+          })
     ]
-  },
-  plugins: [
-    // Injects bundles in your index.html instead of wiring all manually.
-    // It also adds hash to all injected assets so we don't have problems
-    // with cache purging during deployment.
-    new HtmlWebpackPlugin({
-      template: 'client/index.html',
-      inject: 'body',
-      hash: true
-    }),
-
-    // Automatically move all modules defined outside of application directory to vendor bundle.
-    // If you are using more complicated project structure, consider to specify common chunks manually.
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'vendor',
-      minChunks: function (module, count) {
-        return module.resource && module.resource.indexOf(path.resolve(__dirname, 'client')) === -1;
-      }
-    })
-  ]
 };
+
